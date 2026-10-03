@@ -69,7 +69,7 @@ class CaptureService : Service() {
     private fun showEye() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         eye = ImageView(this).apply {
-            setImageResource(R.drawable.snap_eye)
+            setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Eye snapshot button"
             setOnClickListener { blink(true); takeSnap() }
         }
