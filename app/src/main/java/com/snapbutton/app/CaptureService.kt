@@ -74,10 +74,10 @@ class CaptureService : Service() {
                 setStroke((2 * resources.displayMetrics.density).toInt(), Color.rgb(10, 60, 10))
             }
             setTextColor(Color.BLACK)
-            contentDescription = "Green cat eye screenshot button"
+            contentDescription = "Toy water pistol screenshot button"
             setOnClickListener { takeSnap() }
         }
-        val size = (32 * resources.displayMetrics.density).toInt()
+        val size = (64 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(size,size,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT)
@@ -90,7 +90,7 @@ class CaptureService : Service() {
     private fun takeSnap() {
         val r = reader ?: return
         while (true) { val old = r.acquireLatestImage() ?: break; old.close() }
-        bubble.text = "━"
+        bubble.text = "💦"
         handler.postDelayed({ bubble.visibility = View.INVISIBLE; handler.postDelayed({ captureNewest(0) }, 120) }, 100)
     }
 
@@ -98,7 +98,7 @@ class CaptureService : Service() {
         val image = reader?.acquireLatestImage()
         if (image == null) {
             if (attempt < 8) handler.postDelayed({captureNewest(attempt+1)},50)
-            else { bubble.text=""; bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
+            else { bubble.text="🔫"; bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
             return
         }
         val m=resources.displayMetrics
@@ -106,11 +106,13 @@ class CaptureService : Service() {
         val raw=Bitmap.createBitmap(m.widthPixels+(row-pixel*m.widthPixels)/pixel,m.heightPixels,Bitmap.Config.ARGB_8888)
         raw.copyPixelsFromBuffer(plane.buffer); image.close()
         val bmp=Bitmap.createBitmap(raw,0,0,m.widthPixels,m.heightPixels); raw.recycle()
-        save(bmp); bubble.text=""; bubble.visibility=View.VISIBLE
+        save(bmp); bubble.text="🔫"; bubble.visibility=View.VISIBLE
     }
 
     private fun playCameraSound() {
-        cameraSound.play(MediaActionSound.SHUTTER_CLICK)
+        val squirt = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
+        squirt.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
+        handler.postDelayed({ squirt.release() }, 140)
         handler.postDelayed({
             val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 45)
             tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 180)
