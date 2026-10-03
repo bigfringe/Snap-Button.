@@ -13,7 +13,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.*
 import android.provider.MediaStore
 import android.view.*
-import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
 import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
@@ -21,7 +21,7 @@ import java.util.*
 
 class CaptureService : Service() {
     private lateinit var wm: WindowManager
-    private lateinit var bubble: ImageButton
+    private lateinit var bubble: TextView
     private var projection: MediaProjection? = null
     private var reader: ImageReader? = null
     private var virtualDisplay: android.hardware.display.VirtualDisplay? = null
@@ -64,15 +64,19 @@ class CaptureService : Service() {
 
     private fun showBubble() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        bubble = ImageButton(this).apply {
-            setImageResource(android.R.drawable.ic_menu_camera)
-            imageTintList = android.content.res.ColorStateList.valueOf(Color.rgb(255, 215, 0))
-            background = GradientDrawable().apply { shape=GradientDrawable.OVAL; setColor(Color.rgb(255, 235, 59)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.rgb(255, 215, 0)) }
-            setPadding(22,22,22,22)
+        bubble = TextView(this).apply {
+            text = "👁"
+            textSize = 20f
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(255, 235, 59))
+                setStroke((1 * resources.displayMetrics.density).toInt(), Color.rgb(255, 215, 0))
+            }
             contentDescription = "Take screenshot"
             setOnClickListener { takeSnap() }
         }
-        val size = (64 * resources.displayMetrics.density).toInt()
+        val size = (32 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(size,size,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT)
@@ -85,15 +89,15 @@ class CaptureService : Service() {
     private fun takeSnap() {
         val r = reader ?: return
         while (true) { val old = r.acquireLatestImage() ?: break; old.close() }
-        bubble.visibility = View.INVISIBLE
-        handler.postDelayed({ captureNewest(0) }, 180)
+        bubble.text = "—"
+        handler.postDelayed({ bubble.visibility = View.INVISIBLE; handler.postDelayed({ captureNewest(0) }, 120) }, 100)
     }
 
     private fun captureNewest(attempt:Int) {
         val image = reader?.acquireLatestImage()
         if (image == null) {
             if (attempt < 8) handler.postDelayed({captureNewest(attempt+1)},50)
-            else { bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
+            else { bubble.text="👁"; bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
             return
         }
         val m=resources.displayMetrics
@@ -101,7 +105,7 @@ class CaptureService : Service() {
         val raw=Bitmap.createBitmap(m.widthPixels+(row-pixel*m.widthPixels)/pixel,m.heightPixels,Bitmap.Config.ARGB_8888)
         raw.copyPixelsFromBuffer(plane.buffer); image.close()
         val bmp=Bitmap.createBitmap(raw,0,0,m.widthPixels,m.heightPixels); raw.recycle()
-        save(bmp); bubble.visibility=View.VISIBLE
+        save(bmp); bubble.text="👁"; bubble.visibility=View.VISIBLE
     }
 
     private fun playCameraSound() {
