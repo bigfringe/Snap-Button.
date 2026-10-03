@@ -62,7 +62,8 @@ class CaptureService : Service() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         bubble = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_menu_camera)
-            background = GradientDrawable().apply { shape=GradientDrawable.OVAL; setColor(Color.argb(230,35,35,35)) }
+            imageTintList = android.content.res.ColorStateList.valueOf(Color.rgb(255, 215, 0))
+            background = GradientDrawable().apply { shape=GradientDrawable.OVAL; setColor(Color.rgb(255, 235, 59)); setStroke((2 * resources.displayMetrics.density).toInt(), Color.rgb(255, 215, 0)) }
             setPadding(22,22,22,22)
             contentDescription = "Take screenshot"
             setOnClickListener { takeSnap() }
@@ -72,8 +73,8 @@ class CaptureService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT)
         p.gravity = Gravity.BOTTOM or Gravity.END
-        p.x = (16 * resources.displayMetrics.density).toInt()
-        p.y = (40 * resources.displayMetrics.density).toInt()
+        p.x = 0
+        p.y = 0
         wm.addView(bubble,p)
     }
 
