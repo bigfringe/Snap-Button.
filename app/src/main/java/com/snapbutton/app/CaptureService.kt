@@ -74,8 +74,8 @@ class CaptureService : Service() {
                 setStroke((2 * resources.displayMetrics.density).toInt(), Color.rgb(10, 60, 10))
             }
             setTextColor(Color.BLACK)
-            contentDescription = "Toy water pistol screenshot button"
-            setOnClickListener { takeSnap() }
+            contentDescription = "Eye snapshot button"
+            setOnClickListener { blink(true); takeSnap() }
         }
         val size = (64 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(size,size,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -84,7 +84,24 @@ class CaptureService : Service() {
         p.gravity = Gravity.BOTTOM or Gravity.END
         p.x = 0
         p.y = 0
-        wm.addView(bubble,p)
+        wm.addView(bubble,p)\n        startEyeMotion()
+    }
+
+
+    private fun startEyeMotion() {
+        val drift = ObjectAnimator.ofFloat(bubble, View.TRANSLATION_Y, 0f, -5f, 0f).apply {
+            duration = 2400; repeatCount = ObjectAnimator.INFINITE; interpolator = AccelerateDecelerateInterpolator()
+        }
+        drift.start()
+        handler.postDelayed(object: Runnable {
+            override fun run() { blink(false); handler.postDelayed(this, 2800) }
+        }, 1700)
+    }
+
+    private fun blink(pressed:Boolean) {
+        val close = ObjectAnimator.ofFloat(bubble, View.SCALE_Y, 1f, 0.14f).apply { duration = if (pressed) 75 else 105 }
+        val open = ObjectAnimator.ofFloat(bubble, View.SCALE_Y, 0.14f, 1f).apply { duration = if (pressed) 95 else 130 }
+        AnimatorSet().apply { playSequentially(close, open); start() }
     }
 
     private fun takeSnap() {
