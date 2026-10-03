@@ -5,6 +5,9 @@ import android.content.*
 import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.media.ImageReader
+import android.media.MediaActionSound
+import android.media.ToneGenerator
+import android.media.AudioManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
@@ -23,6 +26,7 @@ class CaptureService : Service() {
     private var reader: ImageReader? = null
     private var virtualDisplay: android.hardware.display.VirtualDisplay? = null
     private val handler = Handler(Looper.getMainLooper())
+    private val cameraSound = MediaActionSound()
 
     override fun onCreate() {
         super.onCreate()
@@ -100,6 +104,15 @@ class CaptureService : Service() {
         save(bmp); bubble.visibility=View.VISIBLE
     }
 
+    private fun playCameraSound() {
+        cameraSound.play(MediaActionSound.SHUTTER_CLICK)
+        handler.postDelayed({
+            val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 45)
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 180)
+            handler.postDelayed({ tone.release() }, 250)
+        }, 120)
+    }
+
     private fun save(b:Bitmap) {
         val v=ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME,"Snap_"+SimpleDateFormat("yyyyMMdd_HHmmss",Locale.UK).format(Date())+".png")
@@ -108,6 +121,7 @@ class CaptureService : Service() {
         }
         contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,v)?.let { u ->
             contentResolver.openOutputStream(u)?.use { b.compress(Bitmap.CompressFormat.PNG,100,it) }
+            playCameraSound()
             Toast.makeText(this,"Screenshot saved",Toast.LENGTH_SHORT).show()
         }
         b.recycle()
@@ -115,7 +129,7 @@ class CaptureService : Service() {
 
     override fun onDestroy() {
         if (::bubble.isInitialized) runCatching { wm.removeView(bubble) }
-        virtualDisplay?.release(); reader?.close(); projection?.stop()
+        virtualDisplay?.release(); reader?.close(); projection?.stop(); cameraSound.release()
         super.onDestroy()
     }
     override fun onBind(intent:Intent?)=null
