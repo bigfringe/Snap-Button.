@@ -14,6 +14,7 @@ import android.os.*
 import android.provider.MediaStore
 import android.view.*
 import android.widget.TextView
+import android.graphics.drawable.LayerDrawable
 import android.widget.Toast
 import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
@@ -65,15 +66,15 @@ class CaptureService : Service() {
     private fun showBubble() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         bubble = TextView(this).apply {
-            text = "🐱"
-            textSize = 18f
+            text = ""
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.rgb(40, 210, 70))
-                setStroke((1 * resources.displayMetrics.density).toInt(), Color.rgb(20, 120, 40))
+                setColor(Color.rgb(90, 230, 70))
+                setStroke((2 * resources.displayMetrics.density).toInt(), Color.rgb(10, 60, 10))
             }
-            contentDescription = "Take screenshot"
+            setTextColor(Color.BLACK)
+            contentDescription = "Green cat eye screenshot button"
             setOnClickListener { takeSnap() }
         }
         val size = (32 * resources.displayMetrics.density).toInt()
@@ -89,7 +90,7 @@ class CaptureService : Service() {
     private fun takeSnap() {
         val r = reader ?: return
         while (true) { val old = r.acquireLatestImage() ?: break; old.close() }
-        bubble.text = "—"
+        bubble.text = "━"
         handler.postDelayed({ bubble.visibility = View.INVISIBLE; handler.postDelayed({ captureNewest(0) }, 120) }, 100)
     }
 
@@ -97,7 +98,7 @@ class CaptureService : Service() {
         val image = reader?.acquireLatestImage()
         if (image == null) {
             if (attempt < 8) handler.postDelayed({captureNewest(attempt+1)},50)
-            else { bubble.text="🐱"; bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
+            else { bubble.text=""; bubble.visibility=View.VISIBLE; Toast.makeText(this,"Try again",Toast.LENGTH_SHORT).show() }
             return
         }
         val m=resources.displayMetrics
@@ -105,7 +106,7 @@ class CaptureService : Service() {
         val raw=Bitmap.createBitmap(m.widthPixels+(row-pixel*m.widthPixels)/pixel,m.heightPixels,Bitmap.Config.ARGB_8888)
         raw.copyPixelsFromBuffer(plane.buffer); image.close()
         val bmp=Bitmap.createBitmap(raw,0,0,m.widthPixels,m.heightPixels); raw.recycle()
-        save(bmp); bubble.text="🐱"; bubble.visibility=View.VISIBLE
+        save(bmp); bubble.text=""; bubble.visibility=View.VISIBLE
     }
 
     private fun playCameraSound() {
