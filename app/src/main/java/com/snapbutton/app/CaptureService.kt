@@ -169,6 +169,10 @@ class CaptureService : Service() {
         while (true) { val old = r.acquireLatestImage() ?: break; old.close() }
         handler.postDelayed({
             eye.visibility = View.INVISIBLE
+            // Safety restore: the floating eye must never stay hidden after a screenshot.
+            handler.postDelayed({
+                if (::eye.isInitialized && eye.isAttachedToWindow) eye.visibility = View.VISIBLE
+            }, 1200)
             handler.postDelayed({ captureNewest(0) }, 120)
         }, 120)
     }
