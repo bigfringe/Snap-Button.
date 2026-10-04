@@ -71,7 +71,7 @@ class CaptureService : Service() {
         eye = ImageView(this).apply {
             setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Eye snapshot button"
-            setOnClickListener { blink(true); takeSnap() }
+            setOnClickListener { takeSnap() }
         }
         val size = (64 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(
@@ -83,28 +83,6 @@ class CaptureService : Service() {
         p.x = 0
         p.y = 0
         wm.addView(eye, p)
-        startEyeMotion()
-    }
-
-    private fun startEyeMotion() {
-        ObjectAnimator.ofFloat(eye, View.TRANSLATION_Y, 0f, -5f, 0f).apply {
-            duration = 2400
-            repeatCount = ObjectAnimator.INFINITE
-            interpolator = AccelerateDecelerateInterpolator()
-            start()
-        }
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                if (::eye.isInitialized && eye.isAttachedToWindow) blink(false)
-                handler.postDelayed(this, 2800)
-            }
-        }, 1700)
-    }
-
-    private fun blink(pressed: Boolean) {
-        val close = ObjectAnimator.ofFloat(eye, View.SCALE_Y, 1f, 0.12f).apply { duration = if (pressed) 70 else 105 }
-        val open = ObjectAnimator.ofFloat(eye, View.SCALE_Y, 0.12f, 1f).apply { duration = if (pressed) 100 else 135 }
-        AnimatorSet().apply { playSequentially(close, open); start() }
     }
 
     private fun takeSnap() {
