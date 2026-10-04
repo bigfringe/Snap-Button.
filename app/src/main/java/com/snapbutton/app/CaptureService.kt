@@ -16,6 +16,9 @@ import android.provider.MediaStore
 import android.view.*
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import android.speech.tts.TextToSpeech
 import java.text.SimpleDateFormat
@@ -30,6 +33,11 @@ class CaptureService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val cameraSound = MediaActionSound()
     private var tts: TextToSpeech? = null
+    private var longPressTriggered = false
+    private val removeHold = Runnable {
+        longPressTriggered = true
+        showRemoveConfirmation()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -89,9 +97,27 @@ class CaptureService : Service() {
         eye = ImageView(this).apply {
             setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Eye snapshot button"
-            setOnClickListener {
-                tts?.speak("Ouch!", TextToSpeech.QUEUE_FLUSH, null, "snap_ouch")
-                handler.postDelayed({ takeSnap() }, 550)
+            setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        longPressTriggered = false
+                        handler.postDelayed(removeHold, 4000)
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        handler.removeCallbacks(removeHold)
+                        if (!longPressTriggered) {
+                            tts?.speak("Ouch!", TextToSpeech.QUEUE_FLUSH, null, "snap_ouch")
+                            handler.postDelayed({ takeSnap() }, 550)
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        handler.removeCallbacks(removeHold)
+                        true
+                    }
+                    else -> true
+                }
             }
         }
         val size = (32 * resources.displayMetrics.density).toInt()
@@ -104,6 +130,38 @@ class CaptureService : Service() {
         p.x = 0
         p.y = 0
         wm.addView(eye, p)
+    }
+
+    private fun showRemoveConfirmation() {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 36, 48, 36)
+            setBackgroundColor(android.graphics.Color.WHITE)
+        }
+        box.addView(TextView(this).apply {
+            text = "Remove Snap Button?"
+            textSize = 20f
+            setTextColor(android.graphics.Color.BLACK)
+        })
+        box.addView(Button(this).apply {
+            text = "REMOVE"
+            setOnClickListener { stopSelf() }
+        })
+        box.addView(Button(this).apply {
+            text = "KEEP"
+            setOnClickListener {
+                runCatching { wm.removeView(box) }
+                longPressTriggered = false
+            }
+        })
+        val width = (280 * resources.displayMetrics.density).toInt()
+        val params = WindowManager.LayoutParams(
+            width, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.CENTER }
+        wm.addView(box, params)
     }
 
     private fun takeSnap() {
