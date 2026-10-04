@@ -94,7 +94,7 @@ class CaptureService : Service() {
                 handler.postDelayed({ takeSnap() }, 550)
             }
         }
-        val size = (64 * resources.displayMetrics.density).toInt()
+        val size = (32 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(
             size, size, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
