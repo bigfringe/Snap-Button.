@@ -41,7 +41,20 @@ class CaptureService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_camera).build())
         cameraSound.load(MediaActionSound.SHUTTER_CLICK)
         tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) tts?.language = Locale.UK
+            if (status == TextToSpeech.SUCCESS) {
+                val engine = tts
+                engine?.language = Locale.UK
+                val preferred = engine?.voices
+                    ?.filter { it.locale.language == Locale.UK.language && it.locale.country == Locale.UK.country }
+                    ?.sortedBy { it.isNetworkConnectionRequired }
+                    ?.firstOrNull { voice ->
+                        val name = voice.name.lowercase(Locale.UK)
+                        name.contains("female") || name.contains("woman") || name.contains("en-gb")
+                    }
+                if (preferred != null) engine.voice = preferred
+                engine?.setPitch(1.08f)
+                engine?.setSpeechRate(1.0f)
+            }
         }
         showEye()
     }
