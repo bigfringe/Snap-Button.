@@ -17,6 +17,7 @@ import android.view.*
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.Toast
+import android.speech.tts.TextToSpeech
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -28,6 +29,7 @@ class CaptureService : Service() {
     private var virtualDisplay: android.hardware.display.VirtualDisplay? = null
     private val handler = Handler(Looper.getMainLooper())
     private val cameraSound = MediaActionSound()
+    private var tts: TextToSpeech? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -38,6 +40,9 @@ class CaptureService : Service() {
             .setContentText("Tap the floating eye to take a screenshot")
             .setSmallIcon(android.R.drawable.ic_menu_camera).build())
         cameraSound.load(MediaActionSound.SHUTTER_CLICK)
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) tts?.language = Locale.UK
+        }
         showEye()
     }
 
@@ -71,7 +76,10 @@ class CaptureService : Service() {
         eye = ImageView(this).apply {
             setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Eye snapshot button"
-            setOnClickListener { takeSnap() }
+            setOnClickListener {
+                tts?.speak("Ouch!", TextToSpeech.QUEUE_FLUSH, null, "snap_ouch")
+                handler.postDelayed({ takeSnap() }, 550)
+            }
         }
         val size = (64 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(
@@ -140,6 +148,8 @@ class CaptureService : Service() {
         reader?.close()
         projection?.stop()
         cameraSound.release()
+        tts?.stop()
+        tts?.shutdown()
         super.onDestroy()
     }
 
