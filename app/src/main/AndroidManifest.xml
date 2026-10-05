@@ -2,18 +2,9 @@
  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
- <application android:theme="@style/AppTheme" android:label="Snap Button">
+ <application android:theme="@style/AppTheme" android:label="Screenshot" android:icon="@drawable/screenshot_icon" android:roundIcon="@drawable/screenshot_icon">
   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
   <service android:name=".CaptureService" android:exported="false" android:foregroundServiceType="mediaProjection"/>
-  <service
-      android:name=".SnapTileService"
-      android:exported="true"
-      android:label="Snap Button"
-      android:icon="@android:drawable/ic_menu_camera"
-      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-   <intent-filter>
-    <action android:name="android.service.quicksettings.action.QS_TILE"/>
-   </intent-filter>
-  </service>
+  <service android:name=".SnapTileService" android:exported="true" android:label="Screenshot" android:icon="@drawable/screenshot_icon" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"><intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter></service>
  </application>
 </manifest>
