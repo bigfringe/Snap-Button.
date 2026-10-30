@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.media.ImageReader
 import android.media.MediaActionSound
+import android.media.MediaPlayer
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
@@ -33,6 +34,8 @@ class CaptureService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val cameraSound = MediaActionSound()
     private var tts: TextToSpeech? = null
+    private var catPlayer: MediaPlayer? = null
+    private var selectedButton = 1
     private var longPressTriggered = false
     private val removeHold = Runnable {
         longPressTriggered = true
@@ -64,6 +67,7 @@ class CaptureService : Service() {
                 engine?.setSpeechRate(1.0f)
             }
         }
+        selectedButton = getSharedPreferences("snap", MODE_PRIVATE).getInt("button",1)
         showEye()
     }
 
@@ -95,20 +99,33 @@ class CaptureService : Service() {
     private fun showEye() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         eye = ImageView(this).apply {
-            setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
+            setImageResource(if (selectedButton == 2) R.drawable.smiling_cat else R.drawable.file_0000000005608210b369af43ca73cd02)
+            scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = "Eye snapshot button"
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         longPressTriggered = false
+                        if (selectedButton == 2) {
+                            animate().scaleX(0.84f).scaleY(0.84f).setDuration(100).start()
+                        }
                         handler.postDelayed(removeHold, 4000)
                         true
                     }
                     MotionEvent.ACTION_UP -> {
                         handler.removeCallbacks(removeHold)
+                        if (selectedButton == 2) animate().scaleX(1f).scaleY(1f).setDuration(140).start()
                         if (!longPressTriggered) {
-                            tts?.speak("Ouch!", TextToSpeech.QUEUE_FLUSH, null, "snap_ouch")
-                            handler.postDelayed({ takeSnap() }, 550)
+                            if (selectedButton == 2) {
+                                catPlayer?.release()
+                                catPlayer = MediaPlayer.create(this@CaptureService, R.raw.cat_meow)
+                                catPlayer?.setOnCompletionListener { it.release(); if (catPlayer === it) catPlayer = null }
+                                catPlayer?.start()
+                                handler.postDelayed({ takeSnap() }, 200)
+                            } else {
+                                tts?.speak("Ouch!", TextToSpeech.QUEUE_FLUSH, null, "snap_ouch")
+                                handler.postDelayed({ takeSnap() }, 550)
+                            }
                         }
                         true
                     }
@@ -223,6 +240,8 @@ class CaptureService : Service() {
         reader?.close()
         projection?.stop()
         cameraSound.release()
+        catPlayer?.release()
+        catPlayer = null
         tts?.stop()
         tts?.shutdown()
         super.onDestroy()
