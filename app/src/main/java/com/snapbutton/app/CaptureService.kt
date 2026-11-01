@@ -103,13 +103,26 @@ class CaptureService : Service() {
 
     private fun showEye() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        buttonContainer = FrameLayout(this)
+        buttonContainer = FrameLayout(this).apply {
+            background = circleBackground(0xFF0B1422.toInt())
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+        }
         eye = ImageView(this).apply {
             setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Floating screenshot button"
-            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF0B1422.toInt())
+            }
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
         }
-        buttonContainer.addView(eye, FrameLayout.LayoutParams(-1, -1))
+        val inset = (2.5f * resources.displayMetrics.density).toInt()
+        buttonContainer.addView(eye, FrameLayout.LayoutParams(-1, -1).apply {
+            setMargins(inset, inset, inset, inset)
+        })
         designSymbol = TextView(this).apply {
             textSize = 24f
             gravity = Gravity.CENTER
@@ -159,7 +172,35 @@ class CaptureService : Service() {
         else eye.setImageBitmap(choiceBitmap(index))
         eye.visibility = View.VISIBLE
         designSymbol?.visibility = View.GONE
-        buttonContainer.background = null
+        buttonContainer.background = circleBackground(0xFF0B1422.toInt())
+        buttonContainer.clipToOutline = true
+        buttonContainer.outlineProvider = ViewOutlineProvider.BACKGROUND
+    }
+
+    private fun circularPreview(index: Int, sizeDp: Int): FrameLayout {
+        val frame = FrameLayout(this).apply {
+            background = circleBackground(0xFF0B1422.toInt())
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+        }
+        val inset = (2f * resources.displayMetrics.density).toInt()
+        val image = ImageView(this).apply {
+            setImageBitmap(choiceBitmap(index))
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF0B1422.toInt())
+            }
+            clipToOutline = true
+            outlineProvider = ViewOutlineProvider.BACKGROUND
+            contentDescription = designs[index].title
+        }
+        frame.addView(image, FrameLayout.LayoutParams(-1, -1).apply {
+            setMargins(inset, inset, inset, inset)
+        })
+        val size = (sizeDp * resources.displayMetrics.density).toInt()
+        frame.layoutParams = LinearLayout.LayoutParams(size, size)
+        return frame
     }
 
     private fun choiceBitmap(index: Int): Bitmap = choiceBitmaps.getOrPut(index) {
@@ -184,92 +225,93 @@ class CaptureService : Service() {
 
     private fun showDesignBoard() {
         if (chooser != null) return
+        val gold = 0xFFFFC94A.toInt()
+        val navy = 0xFF0B1422.toInt()
+        fun premiumButton(label: String, action: () -> Unit) = Button(this).apply {
+            text = label
+            textSize = 10f
+            minWidth = 0
+            setTextColor(navy)
+            backgroundTintList = android.content.res.ColorStateList.valueOf(gold)
+            setPadding(8, 2, 8, 2)
+            setOnClickListener { action() }
+        }
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 18, 20, 16)
+            setPadding(16, 14, 16, 12)
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(navy)
                 cornerRadius = 18f * resources.displayMetrics.density
-                setStroke((2 * resources.displayMetrics.density).toInt(), 0xFFFFC94A.toInt())
+                setStroke((2 * resources.displayMetrics.density).toInt(), gold)
             }
         }
         panel.addView(TextView(this).apply {
             text = "CHOOSE YOUR SNAP BUTTON"
-            textSize = 20f
-            setTextColor(0xFF172332.toInt())
+            textSize = 19f
+            setTextColor(gold)
             gravity = Gravity.CENTER
-            setPadding(0, 4, 0, 12)
+            setPadding(0, 4, 0, 8)
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         panel.addView(TextView(this).apply {
-            text = "Tap TEST SOUND to preview each option, then USE to change the floating button."
-            textSize = 14f
-            setTextColor(0xFF333333.toInt())
+            text = "Preview a sound, then choose the button you want."
+            textSize = 13f
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 12)
+            setPadding(0, 0, 0, 10)
         })
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         designs.forEachIndexed { index, design ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(4, 5, 4, 5)
+                setPadding(6, 5, 6, 5)
+                background = GradientDrawable().apply {
+                    setColor(0xFF111F31.toInt())
+                    cornerRadius = 12f * resources.displayMetrics.density
+                }
             }
-            row.addView(ImageView(this).apply {
-                setImageBitmap(choiceBitmap(index))
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                contentDescription = design.title
-            }, LinearLayout.LayoutParams((48 * resources.displayMetrics.density).toInt(), (48 * resources.displayMetrics.density).toInt()))
+            row.addView(circularPreview(index, 44), LinearLayout.LayoutParams(
+                (44 * resources.displayMetrics.density).toInt(),
+                (44 * resources.displayMetrics.density).toInt()
+            ))
             row.addView(TextView(this).apply {
                 text = design.title
-                textSize = 14f
-                setTextColor(0xFF172332.toInt())
+                textSize = 13f
+                setTextColor(Color.WHITE)
                 setTypeface(null, android.graphics.Typeface.BOLD)
-                setPadding(8, 0, 2, 0)
+                setPadding(8, 0, 4, 0)
             }, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(Button(this).apply {
-                text = "TEST SOUND"
-                textSize = 10f
-                minWidth = 0
-                setPadding(8, 0, 8, 0)
-                setOnClickListener { playButtonSound(index, true) }
-            })
-            row.addView(Button(this).apply {
-                text = if (index == selectedDesign) "USING" else "USE"
-                textSize = 10f
-                minWidth = 0
-                setPadding(8, 0, 8, 0)
-                isEnabled = index != selectedDesign
-                setOnClickListener {
-                    prefs.edit().putInt("design", index).apply()
-                    applyDesign(index)
-                    closeDesignBoard()
-                    Toast.makeText(this@CaptureService, "${design.title} selected", Toast.LENGTH_SHORT).show()
-                }
-            })
-            list.addView(row)
+            row.addView(premiumButton("TEST", { playButtonSound(index, true) }))
+            val useButton = premiumButton(if (index == selectedDesign) "USING" else "USE") {
+                prefs.edit().putInt("design", index).apply()
+                applyDesign(index)
+                closeDesignBoard()
+                Toast.makeText(this@CaptureService, "${design.title} selected", Toast.LENGTH_SHORT).show()
+            }
+            useButton.isEnabled = index != selectedDesign
+            row.addView(useButton)
+            val rowParams = LinearLayout.LayoutParams(-1, -2)
+            rowParams.bottomMargin = (5 * resources.displayMetrics.density).toInt()
+            list.addView(row, rowParams)
         }
-        val scroll = ScrollView(this).apply { addView(list) }
+        val scroll = ScrollView(this).apply { isFillViewport = true; addView(list) }
         panel.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+            setPadding(0, 8, 0, 0)
         }
-        footer.addView(Button(this).apply {
-            text = "TEST CAT SOUND"
-            setOnClickListener { playUploadedCatSound() }
+        footer.addView(premiumButton("REMOVE BUTTON") {
+            closeDesignBoard()
+            showRemoveConfirmation()
         })
-        footer.addView(Button(this).apply {
-            text = "REMOVE BUTTON"
-            setOnClickListener { closeDesignBoard(); showRemoveConfirmation() }
-        })
-        footer.addView(Button(this).apply {
-            text = "CLOSE"
-            setOnClickListener { closeDesignBoard() }
-        })
+        footer.addView(premiumButton("CLOSE") { closeDesignBoard() })
         panel.addView(footer)
-        val width = (360 * resources.displayMetrics.density).toInt().coerceAtMost(resources.displayMetrics.widthPixels - 24)
-        val height = (500 * resources.displayMetrics.density).toInt().coerceAtMost(resources.displayMetrics.heightPixels - 48)
+        val width = (390 * resources.displayMetrics.density).toInt()
+            .coerceAtMost(resources.displayMetrics.widthPixels - 24)
+        val height = (resources.displayMetrics.heightPixels - (64 * resources.displayMetrics.density).toInt())
+            .coerceAtMost((640 * resources.displayMetrics.density).toInt())
         val params = WindowManager.LayoutParams(
             width, height, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -286,22 +328,21 @@ class CaptureService : Service() {
     }
 
     private fun playButtonSound(index: Int, preview: Boolean) {
-        if (index == 4) {
-            val soundId = resources.getIdentifier("duck_quack", "raw", packageName)
-            if (soundId != 0) {
-                MediaPlayer.create(this, soundId)?.let { player ->
-                    player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
-                    player.setOnCompletionListener { it.release() }
-                    player.start()
-                    return
-                }
-            }
+        val resourceName = when (index) {
+            0 -> "water_gun_voice"
+            1 -> "rocket_whoosh"
+            2 -> "robot_voice"
+            3 -> "dog_bark"
+            4 -> "duck_quack"
+            5 -> "football_crowd"
+            7 -> "ufo_passage"
+            else -> null
         }
-        // The Water Pistol uses the user's own recording; TEST SOUND previews the same clip.
-        if (index == 0) {
-            val soundId = resources.getIdentifier("water_gun_voice", "raw", packageName)
+        if (resourceName != null) {
+            val soundId = resources.getIdentifier(resourceName, "raw", packageName)
             if (soundId != 0) {
                 MediaPlayer.create(this, soundId)?.let { player ->
+                    if (index == 4) player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
                     player.setOnCompletionListener { it.release() }
                     player.start()
                     return
