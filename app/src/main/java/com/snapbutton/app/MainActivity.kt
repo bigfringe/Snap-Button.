@@ -12,9 +12,12 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
  private val requestCapture=7001
  override fun onCreate(state:Bundle?){ super.onCreate(state)
-  val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(48,48,48,48)}
+  val layout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(32,40,32,40)}
   layout.addView(TextView(this).apply{text="Snap Button";textSize=30f;gravity=Gravity.CENTER})
-  layout.addView(TextView(this).apply{text="Tap Start, allow the Android permissions, then use the floating camera button at the bottom-right.";textSize=18f;gravity=Gravity.CENTER;setPadding(0,30,0,30)})
+  layout.addView(TextView(this).apply{
+   text="Tap the floating button to take a screenshot. Hold it for 4 seconds to change its design. Use TEST SOUND on the button board to preview a sound."
+   textSize=18f;gravity=Gravity.CENTER;setPadding(0,24,0,24)
+  })
   layout.addView(Button(this).apply{text="START SNAP BUTTON";setOnClickListener{begin()}})
   setContentView(layout)
  }
