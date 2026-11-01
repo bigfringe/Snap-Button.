@@ -63,7 +63,7 @@ class CaptureService : Service() {
         nm.createNotificationChannel(NotificationChannel("snap", "Snap Button", NotificationManager.IMPORTANCE_LOW))
         startForeground(11, Notification.Builder(this, "snap")
             .setContentTitle("Snap Button is active")
-            .setContentText("Tap to capture. Hold for 4 seconds to change the button.")
+            .setContentText("Tap to capture. Hold for 2.5 seconds to change the button.")
             .setSmallIcon(android.R.drawable.ic_menu_camera).build())
         cameraSound.load(MediaActionSound.SHUTTER_CLICK)
         tts = TextToSpeech(this) { status ->
@@ -138,7 +138,7 @@ class CaptureService : Service() {
                 MotionEvent.ACTION_DOWN -> {
                     longPressTriggered = false
                     playButtonSound(selectedDesign, false)
-                    handler.postDelayed(changeHold, 4000)
+                    handler.postDelayed(changeHold, 2500)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
