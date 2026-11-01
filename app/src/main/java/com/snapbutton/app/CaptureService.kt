@@ -34,6 +34,7 @@ class CaptureService : Service() {
     private val cameraSound = MediaActionSound()
     private var tts: TextToSpeech? = null
     private var longPressTriggered = false
+    private var soundPlayedOnDown = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
     private val selectedDesign get() = prefs.getInt("design", -1).coerceIn(-1, 7)
     private val choiceBitmaps = mutableMapOf<Int, Bitmap>()
@@ -122,19 +123,23 @@ class CaptureService : Service() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     longPressTriggered = false
+                    soundPlayedOnDown = selectedDesign == 4
+                    if (soundPlayedOnDown) playButtonSound(selectedDesign, false)
                     handler.postDelayed(changeHold, 4000)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(changeHold)
                     if (!longPressTriggered) {
-                        playButtonSound(selectedDesign, false)
+                        if (!soundPlayedOnDown) playButtonSound(selectedDesign, false)
                         handler.postDelayed({ takeSnap() }, 550)
                     }
+                    soundPlayedOnDown = false
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(changeHold)
+                    soundPlayedOnDown = false
                     true
                 }
                 else -> true
@@ -281,6 +286,17 @@ class CaptureService : Service() {
     }
 
     private fun playButtonSound(index: Int, preview: Boolean) {
+        if (index == 4) {
+            val soundId = resources.getIdentifier("duck_quack", "raw", packageName)
+            if (soundId != 0) {
+                MediaPlayer.create(this, soundId)?.let { player ->
+                    player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
+                    player.setOnCompletionListener { it.release() }
+                    player.start()
+                    return
+                }
+            }
+        }
         // The Water Pistol uses the user's own recording; TEST SOUND previews the same clip.
         if (index == 0) {
             val soundId = resources.getIdentifier("water_gun_voice", "raw", packageName)
