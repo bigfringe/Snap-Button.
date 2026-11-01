@@ -70,7 +70,7 @@ class CaptureService : Service() {
                 val engine = tts
                 engine?.language = Locale.UK
                 engine?.setPitch(1.08f)
-                engine?.setSpeechRate(1.0f)
+                engine?.setSpeechRate(1.75f)
             }
         }
         showEye()
@@ -346,7 +346,7 @@ class CaptureService : Service() {
             val soundId = resources.getIdentifier(resourceName, "raw", packageName)
             if (soundId != 0) {
                 MediaPlayer.create(this, soundId)?.let { player ->
-                    if (index == 4) player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
+                    player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
                     player.setOnCompletionListener { it.release() }
                     player.start()
                     return
