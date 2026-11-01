@@ -35,7 +35,7 @@ class CaptureService : Service() {
     private var tts: TextToSpeech? = null
     private var longPressTriggered = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
-    private val selectedDesign get() = prefs.getInt("design", 2).coerceIn(0, 7)
+    private val selectedDesign get() = prefs.getInt("design", -1).coerceIn(-1, 7)
     private val choiceBitmaps = mutableMapOf<Int, Bitmap>()
 
     private data class ButtonDesign(val title: String, val preview: String)
@@ -150,7 +150,8 @@ class CaptureService : Service() {
     }
 
     private fun applyDesign(index: Int) {
-        eye.setImageBitmap(choiceBitmap(index))
+        if (index < 0) eye.setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
+        else eye.setImageBitmap(choiceBitmap(index))
         eye.visibility = View.VISIBLE
         designSymbol?.visibility = View.GONE
         buttonContainer.background = null
@@ -280,7 +281,7 @@ class CaptureService : Service() {
     }
 
     private fun playButtonSound(index: Int, preview: Boolean) {
-        val phrase = designs[index].preview
+        val phrase = if (index < 0) "Ouch!" else designs[index].preview
         tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, if (preview) "sound_preview" else "button_sound")
     }
 
