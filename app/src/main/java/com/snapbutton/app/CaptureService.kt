@@ -3,6 +3,7 @@ package com.snapbutton.app
 import android.app.*
 import android.content.*
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
@@ -33,6 +34,7 @@ class CaptureService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val cameraSound = MediaActionSound()
     private var tts: TextToSpeech? = null
+    private var activePlayer: MediaPlayer? = null
     private var longPressTriggered = false
     private var soundPlayedOnDown = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
@@ -47,7 +49,7 @@ class CaptureService : Service() {
         ButtonDesign("Cheeky Dog", "Woof!"),
         ButtonDesign("Duck", "Quack!"),
         ButtonDesign("Football", "Goal!"),
-        ButtonDesign("Sarcastic Star", "Oh, brilliant."),
+        ButtonDesign("Eye", "Ouch!"),
         ButtonDesign("UFO", "Alien beeps.")
     )
 
@@ -136,22 +138,21 @@ class CaptureService : Service() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     longPressTriggered = false
-                    soundPlayedOnDown = selectedDesign == 0 || selectedDesign == 4
-                    if (soundPlayedOnDown) playButtonSound(selectedDesign, false)
+                    soundPlayedOnDown = true
+                    playButtonSound(selectedDesign, false)
                     handler.postDelayed(changeHold, 4000)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(changeHold)
-                    if (!longPressTriggered) {
-                        if (!soundPlayedOnDown) playButtonSound(selectedDesign, false)
-                        handler.postDelayed({ takeSnap() }, 550)
-                    }
+                    stopButtonSound()
+                    if (!longPressTriggered) handler.postDelayed({ takeSnap() }, 550)
                     soundPlayedOnDown = false
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(changeHold)
+                    stopButtonSound()
                     soundPlayedOnDown = false
                     true
                 }
@@ -169,6 +170,7 @@ class CaptureService : Service() {
 
     private fun applyDesign(index: Int) {
         if (index < 0) eye.setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
+        else if (index == 6) eye.setImageResource(R.drawable.snap_eye)
         else eye.setImageBitmap(choiceBitmap(index))
         eye.visibility = View.VISIBLE
         designSymbol?.visibility = View.GONE
@@ -185,7 +187,7 @@ class CaptureService : Service() {
         }
         val inset = (2f * resources.displayMetrics.density).toInt()
         val image = ImageView(this).apply {
-            setImageBitmap(choiceBitmap(index))
+            if (index == 6) setImageResource(R.drawable.snap_eye) else setImageBitmap(choiceBitmap(index))
             scaleType = ImageView.ScaleType.CENTER_CROP
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -286,7 +288,15 @@ class CaptureService : Service() {
                 setTypeface(null, android.graphics.Typeface.BOLD)
                 setPadding(8, 0, 4, 0)
             }, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(premiumButton("TEST", { playButtonSound(index, true) }))
+            val testButton = premiumButton("TEST") { }
+            testButton.setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> { playButtonSound(index, true); true }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { stopButtonSound(); true }
+                    else -> true
+                }
+            }
+            row.addView(testButton)
             val useButton = premiumButton(if (index == selectedDesign) "USING" else "USE") {
                 prefs.edit().putInt("design", index).apply()
                 applyDesign(index)
@@ -331,7 +341,17 @@ class CaptureService : Service() {
         longPressTriggered = false
     }
 
+    private fun stopButtonSound() {
+        tts?.stop()
+        activePlayer?.let { player ->
+            runCatching { player.setOnCompletionListener(null); player.stop() }
+            runCatching { player.release() }
+        }
+        activePlayer = null
+    }
+
     private fun playButtonSound(index: Int, preview: Boolean) {
+        stopButtonSound()
         val resourceName = when (index) {
             0 -> "water_gun_voice"
             1 -> "rocket_whoosh"
@@ -347,7 +367,11 @@ class CaptureService : Service() {
             if (soundId != 0) {
                 MediaPlayer.create(this, soundId)?.let { player ->
                     player.setPlaybackParams(player.playbackParams.setSpeed(1.75f))
-                    player.setOnCompletionListener { it.release() }
+                    activePlayer = player
+                    player.setOnCompletionListener {
+                        if (activePlayer === it) activePlayer = null
+                        it.release()
+                    }
                     player.start()
                     return
                 }
