@@ -443,7 +443,7 @@ class CaptureService : Service() {
         reader?.close()
         projection?.stop()
         cameraSound.release()
-        tts?.stop()
+        stopButtonSound()
         tts?.shutdown()
         super.onDestroy()
     }
