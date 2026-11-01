@@ -36,7 +36,6 @@ class CaptureService : Service() {
     private var tts: TextToSpeech? = null
     private var activePlayer: MediaPlayer? = null
     private var longPressTriggered = false
-    private var soundPlayedOnDown = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
     private val selectedDesign get() = prefs.getInt("design", -1).coerceIn(-1, 7)
     private val choiceBitmaps = mutableMapOf<Int, Bitmap>()
@@ -113,7 +112,7 @@ class CaptureService : Service() {
         eye = ImageView(this).apply {
             setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
             contentDescription = "Floating screenshot button"
-            scaleType = ImageView.ScaleType.CENTER_CROP
+            scaleType = ImageView.ScaleType.FIT_CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF0B1422.toInt())
@@ -138,22 +137,17 @@ class CaptureService : Service() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     longPressTriggered = false
-                    soundPlayedOnDown = true
                     playButtonSound(selectedDesign, false)
                     handler.postDelayed(changeHold, 4000)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(changeHold)
-                    stopButtonSound()
-                    if (!longPressTriggered) handler.postDelayed({ takeSnap() }, 550)
-                    soundPlayedOnDown = false
+                    if (!longPressTriggered) takeSnap()
                     true
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(changeHold)
-                    stopButtonSound()
-                    soundPlayedOnDown = false
                     true
                 }
                 else -> true
@@ -188,7 +182,7 @@ class CaptureService : Service() {
         val inset = (2f * resources.displayMetrics.density).toInt()
         val image = ImageView(this).apply {
             if (index == 6) setImageResource(R.drawable.snap_eye) else setImageBitmap(choiceBitmap(index))
-            scaleType = ImageView.ScaleType.CENTER_CROP
+            scaleType = ImageView.ScaleType.FIT_CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF0B1422.toInt())
@@ -212,8 +206,9 @@ class CaptureService : Service() {
             val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
             val column = index % 4
             val row = index / 4
-            val centerX = floatArrayOf(0.135f, 0.370f, 0.604f, 0.838f)[column] * sheet.width
-            val centerY = if (row == 0) 0.260f * sheet.height else 0.765f * sheet.height
+            // Use the measured centres of the eight circles in the supplied 4x2 image sheet.
+            val centerX = floatArrayOf(0.136f, 0.372f, 0.617f, 0.841f)[column] * sheet.width
+            val centerY = if (row == 0) 0.296f * sheet.height else 0.700f * sheet.height
             val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
             val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
             val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
