@@ -136,7 +136,7 @@ class CaptureService : Service() {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     longPressTriggered = false
-                    soundPlayedOnDown = selectedDesign == 4
+                    soundPlayedOnDown = selectedDesign == 0 || selectedDesign == 4
                     if (soundPlayedOnDown) playButtonSound(selectedDesign, false)
                     handler.postDelayed(changeHold, 4000)
                     true
