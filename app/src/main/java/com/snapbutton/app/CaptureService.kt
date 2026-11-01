@@ -4,6 +4,7 @@ import android.app.*
 import android.content.*
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
@@ -35,17 +36,18 @@ class CaptureService : Service() {
     private var longPressTriggered = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
     private val selectedDesign get() = prefs.getInt("design", 2).coerceIn(0, 7)
+    private val choiceBitmaps = mutableMapOf<Int, Bitmap>()
 
-    private data class ButtonDesign(val title: String, val symbol: String, val preview: String, val soundFiles: List<String> = emptyList())
+    private data class ButtonDesign(val title: String, val preview: String)
     private val designs = listOf(
-        ButtonDesign("Camera Snap", "📸", "Camera shutter"),
-        ButtonDesign("Angry Cat", "😾", "Angry cat meow", listOf("angry_cat", "cat_meow", "meow")),
-        ButtonDesign("Green Eye", "", "Eye blink"),
-        ButtonDesign("Woman’s Eye", "👁️", "Ouch!"),
-        ButtonDesign("Water Pistol", "🔫", "Water pistol splash", listOf("water_pistol", "squirt")),
-        ButtonDesign("Cool Sarcastic", "😏", "Oh, brilliant."),
-        ButtonDesign("Cheeky Dog", "🐶", "Woof!", listOf("dog_bark", "woof")),
-        ButtonDesign("Smiling Cat", "😸", "Friendly cat meow", listOf("happy_cat", "pleasant_meow", "cat_meow", "meow"))
+        ButtonDesign("Water Pistol", "Pew pew, splash!"),
+        ButtonDesign("Rocket", "Three, two, one, blast off!"),
+        ButtonDesign("Robot", "Beep boop."),
+        ButtonDesign("Cheeky Dog", "Woof!"),
+        ButtonDesign("Duck", "Quack!"),
+        ButtonDesign("Football", "Goal!"),
+        ButtonDesign("Sarcastic Star", "Oh, brilliant."),
+        ButtonDesign("UFO", "Alien beeps.")
     )
 
     private val changeHold = Runnable {
@@ -148,20 +150,24 @@ class CaptureService : Service() {
     }
 
     private fun applyDesign(index: Int) {
-        val design = designs[index]
-        if (index == 2) {
-            eye.visibility = View.VISIBLE
-            designSymbol?.visibility = View.GONE
-            buttonContainer.background = null
-        } else {
-            eye.visibility = View.INVISIBLE
-            designSymbol?.apply {
-                text = design.symbol
-                visibility = View.VISIBLE
-                background = circleBackground(0xFF172332.toInt())
-            }
-            buttonContainer.background = circleBackground(0xFF172332.toInt())
-        }
+        eye.setImageBitmap(choiceBitmap(index))
+        eye.visibility = View.VISIBLE
+        designSymbol?.visibility = View.GONE
+        buttonContainer.background = null
+    }
+
+    private fun choiceBitmap(index: Int): Bitmap = choiceBitmaps.getOrPut(index) {
+        val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
+        val column = index % 4
+        val row = index / 4
+        val centerX = floatArrayOf(0.135f, 0.370f, 0.604f, 0.838f)[column] * sheet.width
+        val centerY = if (row == 0) 0.260f * sheet.height else 0.765f * sheet.height
+        val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
+        val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
+        val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
+        val crop = Bitmap.createBitmap(sheet, left, top, size, size)
+        sheet.recycle()
+        crop
     }
 
     private fun circleBackground(color: Int) = GradientDrawable().apply {
@@ -190,7 +196,7 @@ class CaptureService : Service() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         panel.addView(TextView(this).apply {
-            text = "Tap TEST SOUND to preview, then USE to change the floating button."
+            text = "Tap TEST SOUND to preview each option, then USE to change the floating button."
             textSize = 14f
             setTextColor(0xFF333333.toInt())
             gravity = Gravity.CENTER
@@ -203,11 +209,17 @@ class CaptureService : Service() {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(4, 5, 4, 5)
             }
+            row.addView(ImageView(this).apply {
+                setImageBitmap(choiceBitmap(index))
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                contentDescription = design.title
+            }, LinearLayout.LayoutParams((48 * resources.displayMetrics.density).toInt(), (48 * resources.displayMetrics.density).toInt()))
             row.addView(TextView(this).apply {
-                text = (if (design.symbol.isBlank()) "👁️" else design.symbol) + "  " + design.title
-                textSize = 15f
+                text = design.title
+                textSize = 14f
                 setTextColor(0xFF172332.toInt())
                 setTypeface(null, android.graphics.Typeface.BOLD)
+                setPadding(8, 0, 2, 0)
             }, LinearLayout.LayoutParams(0, -2, 1f))
             row.addView(Button(this).apply {
                 text = "TEST SOUND"
@@ -238,6 +250,10 @@ class CaptureService : Service() {
             gravity = Gravity.CENTER
         }
         footer.addView(Button(this).apply {
+            text = "TEST CAT SOUND"
+            setOnClickListener { playUploadedCatSound() }
+        })
+        footer.addView(Button(this).apply {
             text = "REMOVE BUTTON"
             setOnClickListener { closeDesignBoard(); showRemoveConfirmation() }
         })
@@ -264,27 +280,20 @@ class CaptureService : Service() {
     }
 
     private fun playButtonSound(index: Int, preview: Boolean) {
-        if (index == 0) {
-            cameraSound.play(MediaActionSound.SHUTTER_CLICK)
+        val phrase = designs[index].preview
+        tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, if (preview) "sound_preview" else "button_sound")
+    }
+
+    private fun playUploadedCatSound() {
+        val id = resources.getIdentifier("uploaded_cat_sound", "raw", packageName)
+        if (id == 0) {
+            tts?.speak("Meow!", TextToSpeech.QUEUE_FLUSH, null, "cat_sound_preview")
             return
         }
-        val design = designs[index]
-        for (name in design.soundFiles) {
-            val id = resources.getIdentifier(name, "raw", packageName)
-            if (id != 0) {
-                MediaPlayer.create(this, id)?.let { player ->
-                    player.setOnCompletionListener { it.release() }
-                    player.start()
-                    return
-                }
-            }
+        MediaPlayer.create(this, id)?.let { player ->
+            player.setOnCompletionListener { it.release() }
+            player.start()
         }
-        val phrase = when {
-            index == 2 -> "Click"
-            index == 3 -> "Ouch!"
-            else -> design.preview
-        }
-        tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, if (preview) "sound_preview" else "button_sound")
     }
 
     private fun showRemoveConfirmation() {
