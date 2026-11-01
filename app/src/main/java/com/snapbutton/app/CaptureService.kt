@@ -204,17 +204,21 @@ class CaptureService : Service() {
     }
 
     private fun choiceBitmap(index: Int): Bitmap = choiceBitmaps.getOrPut(index) {
-        val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
-        val column = index % 4
-        val row = index / 4
-        val centerX = floatArrayOf(0.135f, 0.370f, 0.604f, 0.838f)[column] * sheet.width
-        val centerY = if (row == 0) 0.260f * sheet.height else 0.765f * sheet.height
-        val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
-        val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
-        val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
-        val crop = Bitmap.createBitmap(sheet, left, top, size, size)
-        sheet.recycle()
-        crop
+        if (index == 7) {
+            BitmapFactory.decodeResource(resources, R.drawable.ufo_icon)
+        } else {
+            val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
+            val column = index % 4
+            val row = index / 4
+            val centerX = floatArrayOf(0.135f, 0.370f, 0.604f, 0.838f)[column] * sheet.width
+            val centerY = if (row == 0) 0.260f * sheet.height else 0.765f * sheet.height
+            val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
+            val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
+            val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
+            val crop = Bitmap.createBitmap(sheet, left, top, size, size)
+            sheet.recycle()
+            crop
+        }
     }
 
     private fun circleBackground(color: Int) = GradientDrawable().apply {
