@@ -281,6 +281,17 @@ class CaptureService : Service() {
     }
 
     private fun playButtonSound(index: Int, preview: Boolean) {
+        // The Water Pistol uses the user's own recording; TEST SOUND previews the same clip.
+        if (index == 0) {
+            val soundId = resources.getIdentifier("water_gun_voice", "raw", packageName)
+            if (soundId != 0) {
+                MediaPlayer.create(this, soundId)?.let { player ->
+                    player.setOnCompletionListener { it.release() }
+                    player.start()
+                    return
+                }
+            }
+        }
         val phrase = if (index < 0) "Ouch!" else designs[index].preview
         tts?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, if (preview) "sound_preview" else "button_sound")
     }
