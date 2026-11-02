@@ -14,6 +14,7 @@ import android.media.MediaActionSound
 import android.media.MediaPlayer
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.*
 import android.provider.MediaStore
 import android.view.*
@@ -37,7 +38,7 @@ class CaptureService : Service() {
     private var activePlayer: MediaPlayer? = null
     private var longPressTriggered = false
     private val prefs by lazy { getSharedPreferences("snap_button", MODE_PRIVATE) }
-    private val selectedDesign get() = prefs.getInt("design", -1).coerceIn(-1, 7)
+    private val selectedDesign get() = prefs.getInt("design", -1).coerceIn(-1, 8)
     private val choiceBitmaps = mutableMapOf<Int, Bitmap>()
 
     private data class ButtonDesign(val title: String, val preview: String)
@@ -49,7 +50,8 @@ class CaptureService : Service() {
         ButtonDesign("Duck", "Quack!"),
         ButtonDesign("Football", "Goal!"),
         ButtonDesign("Eye", "Ouch!"),
-        ButtonDesign("UFO", "Alien beeps.")
+        ButtonDesign("UFO", "Alien beeps."),
+        ButtonDesign("My Photo (silent)", "")
     )
 
     private val changeHold = Runnable {
@@ -66,6 +68,7 @@ class CaptureService : Service() {
             .setContentText("Tap to capture. Hold for 2.5 seconds to change the button.")
             .setSmallIcon(android.R.drawable.ic_menu_camera).build())
         cameraSound.load(MediaActionSound.SHUTTER_CLICK)
+        registerCustomPhotoReceiver()
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val engine = tts
@@ -153,7 +156,7 @@ class CaptureService : Service() {
                 else -> true
             }
         }
-        val size = (32 * resources.displayMetrics.density).toInt()
+        val size = (40 * resources.displayMetrics.density).toInt()
         val p = WindowManager.LayoutParams(
             size, size, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -163,9 +166,16 @@ class CaptureService : Service() {
     }
 
     private fun applyDesign(index: Int) {
-        if (index < 0) eye.setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
-        else if (index == 6) eye.setImageResource(R.drawable.snap_eye)
-        else eye.setImageBitmap(choiceBitmap(index))
+        if (index < 0) {
+            eye.setImageResource(R.drawable.file_0000000005608210b369af43ca73cd02)
+            eye.scaleType = ImageView.ScaleType.FIT_CENTER
+        } else if (index == 6) {
+            eye.setImageResource(R.drawable.snap_eye)
+            eye.scaleType = ImageView.ScaleType.FIT_CENTER
+        } else {
+            eye.setImageBitmap(choiceBitmap(index))
+            eye.scaleType = if (index == 8) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
+        }
         eye.visibility = View.VISIBLE
         designSymbol?.visibility = View.GONE
         buttonContainer.background = circleBackground(0xFF0B1422.toInt())
@@ -182,7 +192,7 @@ class CaptureService : Service() {
         val inset = (2f * resources.displayMetrics.density).toInt()
         val image = ImageView(this).apply {
             if (index == 6) setImageResource(R.drawable.snap_eye) else setImageBitmap(choiceBitmap(index))
-            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleType = if (index == 8) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF0B1422.toInt())
@@ -200,21 +210,23 @@ class CaptureService : Service() {
     }
 
     private fun choiceBitmap(index: Int): Bitmap = choiceBitmaps.getOrPut(index) {
-        if (index == 7) {
-            BitmapFactory.decodeResource(resources, R.drawable.ufo_icon)
-        } else {
-            val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
-            val column = index % 4
-            val row = index / 4
-            // Use the measured centres of the eight circles in the supplied 4x2 image sheet.
-            val centerX = floatArrayOf(0.136f, 0.372f, 0.617f, 0.841f)[column] * sheet.width
-            val centerY = if (row == 0) 0.296f * sheet.height else 0.700f * sheet.height
-            val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
-            val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
-            val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
-            val crop = Bitmap.createBitmap(sheet, left, top, size, size)
-            sheet.recycle()
-            crop
+        when (index) {
+            7 -> BitmapFactory.decodeResource(resources, R.drawable.ufo_icon)
+            8 -> customPhotoBitmap() ?: BitmapFactory.decodeResource(resources, R.drawable.screenshot_icon)
+            else -> {
+                val sheet = BitmapFactory.decodeResource(resources, R.drawable.button_choices)
+                val column = index % 4
+                val row = index / 4
+                // Use the measured centres of the eight circles in the supplied 4x2 image sheet.
+                val centerX = floatArrayOf(0.136f, 0.372f, 0.617f, 0.841f)[column] * sheet.width
+                val centerY = if (row == 0) 0.296f * sheet.height else 0.700f * sheet.height
+                val size = (sheet.width * 0.232f).toInt().coerceAtMost(sheet.height / 2)
+                val left = (centerX - size / 2).toInt().coerceIn(0, sheet.width - size)
+                val top = (centerY - size / 2).toInt().coerceIn(0, sheet.height - size)
+                val crop = Bitmap.createBitmap(sheet, left, top, size, size)
+                sheet.recycle()
+                crop
+            }
         }
     }
 
@@ -311,6 +323,7 @@ class CaptureService : Service() {
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 0)
         }
+        footer.addView(premiumButton("MY PHOTO") { openCustomPhotoPicker() })
         footer.addView(premiumButton("REMOVE BUTTON") {
             closeDesignBoard()
             showRemoveConfirmation()
@@ -347,6 +360,11 @@ class CaptureService : Service() {
 
     private fun playButtonSound(index: Int, preview: Boolean) {
         stopButtonSound()
+        if (index == 8) {
+            // The custom-photo button is silent apart from one immediate camera click.
+            cameraSound.play(MediaActionSound.SHUTTER_CLICK)
+            return
+        }
         val resourceName = when (index) {
             0 -> "water_gun_voice"
             1 -> "rocket_whoosh"
@@ -449,13 +467,61 @@ class CaptureService : Service() {
         }
         contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)?.let { uri ->
             contentResolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            cameraSound.play(MediaActionSound.SHUTTER_CLICK)
+            if (selectedDesign != 8) cameraSound.play(MediaActionSound.SHUTTER_CLICK)
             Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show()
         }
         bitmap.recycle()
     }
 
+    private fun openCustomPhotoPicker() {
+        closeDesignBoard()
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra("chooseCustomPhoto", true)
+        })
+    }
+
+    private fun customPhotoBitmap(): Bitmap? {
+        val value = prefs.getString("custom_photo_uri", null) ?: return null
+        val uri = runCatching { Uri.parse(value) }.getOrNull() ?: return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching {
+            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        }.getOrNull()
+        var sample = 1
+        while (bounds.outWidth / sample > 512 || bounds.outHeight / sample > 512) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return runCatching {
+            contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        }.getOrNull()
+    }
+
+    private fun registerCustomPhotoReceiver() {
+        val filter = IntentFilter(ACTION_CUSTOM_PHOTO_UPDATED)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(customPhotoChangedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(customPhotoChangedReceiver, filter)
+        }
+        photoReceiverRegistered = true
+    }
+
+    private val customPhotoChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            choiceBitmaps.remove(8)?.recycle()
+            if (selectedDesign == 8 && ::eye.isInitialized) applyDesign(8)
+        }
+    }
+
+    private var photoReceiverRegistered = false
+
+    companion object {
+        const val ACTION_CUSTOM_PHOTO_UPDATED = "com.snapbutton.app.CUSTOM_PHOTO_UPDATED"
+    }
+
     override fun onDestroy() {
+        if (photoReceiverRegistered) runCatching { unregisterReceiver(customPhotoChangedReceiver) }
         closeDesignBoard()
         if (::buttonContainer.isInitialized) runCatching { wm.removeView(buttonContainer) }
         virtualDisplay?.release()
