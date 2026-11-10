@@ -1,0 +1,35 @@
+name: Report failed app builds
+on:
+  workflow_run:
+    workflows:
+      - Build Android APK
+    types:
+      - completed
+permissions:
+  actions: read
+  issues: write
+  contents: read
+jobs:
+  report:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record failing run and logs in an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" > jobs.json
+          jq -r '.jobs[] | select(.conclusion == "failure") | "Job: \(.name), ID: \(.id)\nFailed steps: \([.steps[]? | select(.conclusion == "failure") | .name] | join(", "))"' jobs.json > errors.txt
+          jq -r '.jobs[] | select(.conclusion == "failure") | .id' jobs.json | head -3 | while read -r job; do
+            echo "===== JOB $job =====" >> errors.txt
+            gh api "repos/$GH_REPO/actions/jobs/$job/logs" 2>/dev/null | tail -n 140 >> errors.txt || true
+          done
+          { echo "Failed [build $RUN_ID]($RUN_URL)."; echo; echo '~~~text'; tail -c 24000 errors.txt; echo; echo '~~~'; } > report.md
+          title="APK — latest failed build diagnostics"
+          issue=$(gh issue list --state open --search "in:title $title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$issue" ]; then gh issue comment "$issue" --body-file report.md; else gh issue create --title "$title" --body-file report.md; fi
