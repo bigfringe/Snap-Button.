@@ -1,0 +1,22 @@
+name: Clean old build history
+on:
+  schedule:
+    - cron: '23 3 * * 0'
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove oldest half of completed build runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/actions/runs?per_page=100" > /tmp/pages.jsonl
+          jq -sr '[.[].workflow_runs[] | select(.status == "completed" and .name != "Clean old build history" and .name != "Report failed app builds")] | sort_by(.created_at) | if length <= 20 then [] else .[0:(length/2|floor)] end | .[].id' /tmp/pages.jsonl > /tmp/ids.json
+          jq -r '.[]' /tmp/ids.json | while read -r id; do gh api -X DELETE "repos/$GH_REPO/actions/runs/$id"; done
