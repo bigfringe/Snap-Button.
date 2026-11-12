@@ -33,13 +33,14 @@ jobs:
                   break
               page += 1
           artifacts.sort(key=lambda a: (a["created_at"], a["id"]))
-          # Preserve the newest two artifacts overall, and the newest artifact
-          # for every workflow run represented in this repository.
+          # Keep the newest two APK/build artifacts and the newest artifact
+          # for each distinct artifact name (e.g. release APK).
           newest = sorted(artifacts, key=lambda a: (a["created_at"], a["id"]), reverse=True)
           protected = {a["id"] for a in newest[:2]}
+          seen_names = set()
           for a in newest:
-              run_id = (a.get("workflow_run") or {}).get("id")
-              if run_id and run_id not in { (b.get("workflow_run") or {}).get("id") for b in newest if b["id"] in protected }:
+              if a["name"] not in seen_names:
+                  seen_names.add(a["name"])
                   protected.add(a["id"])
           target = len(artifacts) // 2
           candidates = [a for a in artifacts if a["id"] not in protected][:target]
