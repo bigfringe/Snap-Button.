@@ -1,5 +1,8 @@
 name: Clean up old build artifacts
 on:
+  workflow_run:
+    workflows: ['Build Android APK']
+    types: [completed]
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -44,7 +47,9 @@ jobs:
               if a["name"] not in seen_names:
                   seen_names.add(a["name"])
                   protected.add(a["id"])
-          target = len(artifacts) // 2
+          # On a completed APK build, remove exactly one oldest eligible artifact.
+          # Manual/daily cleanup retains the existing oldest-half policy.
+          target = 1 if os.environ.get("GITHUB_EVENT_NAME") == "workflow_run" else len(artifacts) // 2
           candidates = [a for a in artifacts if a["id"] not in protected][:target]
           print(f"Artifacts: {len(artifacts)}; deleting: {len(candidates)}; protected: {len(protected)}")
           for a in candidates:
