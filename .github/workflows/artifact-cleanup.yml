@@ -1,0 +1,52 @@
+name: Clean up old build artifacts
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/artifact-cleanup.yml'
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete oldest half of artifacts while preserving recent builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, time
+          repo = os.environ["GH_REPO"]
+          def api(*args):
+              result = subprocess.run(["gh", "api", *args], capture_output=True, text=True, check=True)
+              return json.loads(result.stdout) if result.stdout.strip() else {}
+          artifacts = []
+          page = 1
+          while True:
+              data = api(f"repos/{repo}/actions/artifacts?per_page=100&page={page}")
+              batch = data.get("artifacts", [])
+              artifacts.extend(a for a in batch if not a.get("expired"))
+              if len(batch) < 100:
+                  break
+              page += 1
+          artifacts.sort(key=lambda a: (a["created_at"], a["id"]))
+          # Preserve the newest two artifacts overall, and the newest artifact
+          # for every workflow run represented in this repository.
+          newest = sorted(artifacts, key=lambda a: (a["created_at"], a["id"]), reverse=True)
+          protected = {a["id"] for a in newest[:2]}
+          for a in newest:
+              run_id = (a.get("workflow_run") or {}).get("id")
+              if run_id and run_id not in { (b.get("workflow_run") or {}).get("id") for b in newest if b["id"] in protected }:
+                  protected.add(a["id"])
+          target = len(artifacts) // 2
+          candidates = [a for a in artifacts if a["id"] not in protected][:target]
+          print(f"Artifacts: {len(artifacts)}; deleting: {len(candidates)}; protected: {len(protected)}")
+          for a in candidates:
+              subprocess.run(["gh", "api", "-X", "DELETE",
+                f"repos/{repo}/actions/artifacts/{a['id']}"], check=True)
+              print(f"Deleted {a['name']} ({a['size_in_bytes']} bytes)")
+              time.sleep(0.15)
+          PY
