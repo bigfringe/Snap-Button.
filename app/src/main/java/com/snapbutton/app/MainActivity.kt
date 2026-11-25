@@ -34,7 +34,20 @@ class MainActivity : AppCompatActivity() {
         })
         layout.addView(Button(this).apply { text = "UPLOAD PHOTO FOR BUTTON"; setOnClickListener { chooseCustomPhoto() } })
         layout.addView(Button(this).apply { text = "START SNAP BUTTON"; setOnClickListener { begin() } })
-        setContentView(layout)
+        val brand = ImageView(this).apply {
+            contentDescription = "Think Atlas"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                val source = android.graphics.ImageDecoder.createSource(resources, R.raw.think_atlas)
+                val logo = android.graphics.ImageDecoder.decodeDrawable(source)
+                setImageDrawable(logo)
+                (logo as? android.graphics.drawable.AnimatedImageDrawable)?.start()
+            } else {
+                setImageBitmap(android.graphics.BitmapFactory.decodeResource(resources, R.raw.think_atlas))
+            }
+        }
+        layout.addView(brand, LinearLayout.LayoutParams(-1, (42 * resources.displayMetrics.density).toInt()))
+        setContentView(ScrollView(this).apply { isFillViewport = true; addView(layout) })
         if (intent.getBooleanExtra("chooseCustomPhoto", false)) chooseCustomPhoto()
     }
 
