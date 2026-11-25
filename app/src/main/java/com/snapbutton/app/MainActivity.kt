@@ -48,7 +48,35 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(brand, LinearLayout.LayoutParams(-1, (42 * resources.displayMetrics.density).toInt()))
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(layout) })
+        if (state == null && !intent.getBooleanExtra("chooseCustomPhoto", false)) showLaunchEye()
         if (intent.getBooleanExtra("chooseCustomPhoto", false)) chooseCustomPhoto()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun showLaunchEye() {
+        val movie = resources.openRawResource(R.raw.think_atlas).use {
+            android.graphics.Movie.decodeStream(it)
+        } ?: return
+        val frame = findViewById<android.widget.FrameLayout>(android.R.id.content)
+        val eye = object : android.view.View(this) {
+            val started = android.os.SystemClock.uptimeMillis()
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                canvas.drawColor(android.graphics.Color.BLACK)
+                val scale = minOf(width.toFloat() / movie.width(), height.toFloat() / movie.height())
+                canvas.save()
+                canvas.translate((width - scale * movie.width()) / 2, (height - scale * movie.height()) / 2)
+                canvas.scale(scale, scale)
+                movie.setTime(((android.os.SystemClock.uptimeMillis() - started) % movie.duration().coerceAtLeast(1)).toInt())
+                movie.draw(canvas, 0f, 0f)
+                canvas.restore()
+                postInvalidateOnAnimation()
+            }
+        }
+        eye.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+        eye.contentDescription = "Think Atlas"
+        eye.isClickable = true
+        frame.addView(eye, android.widget.FrameLayout.LayoutParams(-1, -1))
+        eye.postDelayed({ frame.removeView(eye) }, 4000)
     }
 
     private fun chooseCustomPhoto() {
