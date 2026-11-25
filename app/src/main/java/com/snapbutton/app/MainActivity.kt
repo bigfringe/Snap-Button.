@@ -1,5 +1,10 @@
 package com.snapbutton.app
 
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.content.res.ColorStateList
+import android.graphics.drawable.RippleDrawable
 import android.app.*
 import android.content.*
 import android.media.projection.MediaProjectionManager
@@ -16,24 +21,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        val gold = Color.rgb(229, 193, 112)
+        val ink = Color.rgb(17, 19, 21)
+        window.statusBarColor = ink
+        window.navigationBarColor = ink
+        fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
+        fun surface(start: Int, end: Int) = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR, intArrayOf(start, end)
+        ).apply {
+            cornerRadius = dp(18).toFloat()
+            setStroke(dp(1), Color.rgb(150, 122, 74))
+        }
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(32, 40, 32, 40)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(22), dp(28), dp(22), dp(28))
+            background = surface(Color.rgb(42, 44, 47), ink)
         }
-        layout.addView(TextView(this).apply {
-            text = "Snap Button"
-            textSize = 30f
-            gravity = Gravity.CENTER
-        })
-        layout.addView(TextView(this).apply {
-            text = "Tap the floating button to take a screenshot. Hold it for 2.5 seconds to change the button. You can upload your own photo for a silent button with a camera click."
-            textSize = 18f
-            gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 24)
-        })
-        layout.addView(Button(this).apply { text = "UPLOAD PHOTO FOR BUTTON"; setOnClickListener { chooseCustomPhoto() } })
-        layout.addView(Button(this).apply { text = "START SNAP BUTTON"; setOnClickListener { begin() } })
         val brand = ImageView(this).apply {
             contentDescription = "Think Atlas"
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -46,8 +50,53 @@ class MainActivity : AppCompatActivity() {
                 setImageBitmap(android.graphics.BitmapFactory.decodeResource(resources, R.raw.think_atlas))
             }
         }
-        layout.addView(brand, LinearLayout.LayoutParams(-1, (42 * resources.displayMetrics.density).toInt()))
-        setContentView(ScrollView(this).apply { isFillViewport = true; addView(layout) })
+        layout.addView(brand, LinearLayout.LayoutParams(-1, dp(84)))
+        layout.addView(TextView(this).apply {
+            text = "Snap Button"
+            textSize = 34f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setTextColor(Color.rgb(250, 246, 236))
+            setPadding(0, dp(12), 0, dp(8))
+        })
+        layout.addView(TextView(this).apply {
+            text = "Tap the floating button to take a screenshot. Hold it for 2.5 seconds to change its design."
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(218, 215, 207))
+            setLineSpacing(dp(2).toFloat(), 1f)
+            setPadding(0, 0, 0, dp(16))
+        })
+        fun action(label: String, primary: Boolean, onTap: () -> Unit) {
+            val fill = if (primary) surface(Color.rgb(251, 225, 164), gold)
+                else surface(Color.rgb(43, 45, 47), ink)
+            layout.addView(Button(this).apply {
+                text = label
+                isAllCaps = false
+                textSize = 16f
+                minHeight = dp(52)
+                setTextColor(if (primary) ink else gold)
+                backgroundTintList = null
+                background = RippleDrawable(ColorStateList.valueOf(0x33888888), fill, null)
+                setOnClickListener { onTap() }
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        }
+        action("Start Snap Button", true) { begin() }
+        action("Choose a button photo", false) { chooseCustomPhoto() }
+        val frame = FrameLayout(this).apply {
+            setPadding(dp(20), dp(24), dp(20), dp(24))
+            addView(layout, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        }
+        frame.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
+            val target = minOf(dp(500), right - left - frame.paddingLeft - frame.paddingRight)
+            if (target > 0 && layout.layoutParams.width != target) {
+                layout.layoutParams = layout.layoutParams.apply { width = target }
+            }
+        }
+        setContentView(ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(ink)
+            addView(frame)
+        })
         if (state == null && !intent.getBooleanExtra("chooseCustomPhoto", false)) showLaunchEye()
         if (intent.getBooleanExtra("chooseCustomPhoto", false)) chooseCustomPhoto()
     }
